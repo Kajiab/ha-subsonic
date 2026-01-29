@@ -132,6 +132,7 @@ class SubsonicApi:
     async def getAlbums(self) -> list:
         params = {
             "type": "alphabeticalByName"
+            "size": 5000
         }
         albumsResponse = await self.__request("GET", "getAlbumList2", params)
         albums = getTagsAttributesToList(albumsResponse, "album")
