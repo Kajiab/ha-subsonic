@@ -1,7 +1,17 @@
+#{
+#    "domain": "subsonic",
+#    "name": "Subsonic",
+#    "codeowners": ["tiorac"],
+#    "version": "0.1.2",
+#    "config_flow": true
+#}
 {
-    "domain": "subsonic",
-    "name": "Subsonic",
-    "codeowners": ["tiorac"],
-    "version": "0.1.2",
-    "config_flow": true
+  "domain": "subsonic",
+  "name": "Subsonic",
+  "documentation": "https://github.com/tiorac/ha-subsonic",
+  "dependencies": [],
+  "codeowners": ["@tiorac"],
+  "requirements": [],
+  "version": "1.0.0",
+  "iot_class": "local_polling"
 }
