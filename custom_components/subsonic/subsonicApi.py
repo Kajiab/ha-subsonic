@@ -3,6 +3,7 @@ import aiohttp
 import asyncio
 import hashlib
 import secrets
+import random
 from typing import Self
 from aiohttp import hdrs
 from .const import LOGGER
@@ -241,3 +242,87 @@ class SubsonicApi:
     
     async def __aexit__(self, *_exc_info: object) -> None:
         await self.close()
+
+    
+    async def async_resolve_tracks(
+        self,
+        media_type: str,
+        media_id: str,
+        shuffle: bool = False,
+    ) -> list[dict]:
+        """Resolve media_type + media_id into a list of track dicts with stream_url & mime_type.
+
+        media_type:
+            - "album"    -> use getAlbum()
+            - "playlist" -> use getPlaylist()
+            - "track"    -> use getSong()
+            - "genre"    -> use getSongsByGenre()
+            - "artist"   -> collect songs from all albums of this artist (may be heavy)
+        """
+
+        tracks: list[dict] = []
+
+        media_type = (media_type or "").lower()
+
+        if media_type == "album":
+            album = await self.getAlbum(media_id)
+            tracks = album.get("songs", []) or []
+
+        elif media_type == "playlist":
+            playlist = await self.getPlaylist(media_id)
+            tracks = playlist.get("songs", []) or []
+
+        elif media_type in ("track", "song"):
+            song = await self.getSong(media_id)
+            if song:
+                tracks = [song]
+
+        elif media_type in ("genre", "songs_by_genre"):
+            tracks = await self.getSongsByGenre(media_id)
+
+        elif media_type == "artist":
+            # NOTE: ตรงนี้อาจจะช้า ถ้า artist มีหลาย album
+            artist = await self.getArtist(media_id)
+            albums = artist.get("albums", []) or []
+            for album in albums:
+                album_id = album.get("id")
+                if not album_id:
+                    continue
+                album_detail = await self.getAlbum(album_id)
+                album_songs = album_detail.get("songs", []) or []
+                tracks.extend(album_songs)
+
+        # ถ้า type ไม่ match ข้างบน ก็จะได้ tracks = [] กลับไป
+
+        if not tracks:
+            return []
+
+        # shuffle ถ้าขอมา
+        if shuffle:
+            random.shuffle(tracks)
+
+        # เติม stream_url + mime_type ให้ทุก track
+        for t in tracks:
+            song_id = t.get("id")
+            if not song_id:
+                continue
+
+            # URL สำหรับ stream เพลงนี้
+            t["stream_url"] = self.getSongStreamUrl(song_id)
+
+            # เดา mime_type จาก contentType หรือ suffix
+            mime_type = t.get("contentType")
+            if not mime_type:
+                suffix = (t.get("suffix") or "").lower()
+                if suffix == "flac":
+                    mime_type = "audio/flac"
+                elif suffix in ("mp3", "mpeg"):
+                    mime_type = "audio/mpeg"
+                elif suffix in ("m4a", "mp4"):
+                    mime_type = "audio/mp4"
+                else:
+                    mime_type = "music"
+            t["mime_type"] = mime_type
+
+        return tracks
+
