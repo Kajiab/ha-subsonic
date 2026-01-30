@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import List
 
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers.service import async_extract_entity_ids
@@ -9,7 +8,7 @@ from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.components.media_player import DOMAIN as MP_DOMAIN
 
 from .const import DOMAIN
-from .subsonicApi import SubsonicApi  # api ของคุณเอง
+from .subsonicApi import SubsonicApi
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,11 +16,10 @@ _LOGGER = logging.getLogger(__name__)
 async def async_register_services(hass: HomeAssistant, api: SubsonicApi) -> None:
     """Register Subsonic/Navidrome services."""
 
-    # ---- core: play_media ----
     async def async_handle_play_media(call: ServiceCall) -> None:
         """Handle subsonic.play_media service."""
 
-        # 1) target media_player(s)
+        # 1) ดึง media_player เป้าหมายจาก target
         entity_ids = async_extract_entity_ids(hass, call)
         if not entity_ids:
             _LOGGER.warning("subsonic.play_media called without target media_player")
@@ -47,21 +45,13 @@ async def async_register_services(hass: HomeAssistant, api: SubsonicApi) -> None
             entity_ids,
         )
 
-        # 2) ขอ list tracks จาก SubsonicApi ของคุณ
-        # NOTE: ตรงนี้ต้องไป match กับ method จริงของ SubsonicApi
-        #       ผมสมมติว่าคุณจะเพิ่ม method ชื่อ async_resolve_tracks
+        # 2) resolve track list ผ่าน SubsonicApi.async_resolve_tracks()
         try:
             tracks = await api.async_resolve_tracks(
                 media_type=media_type,
                 media_id=media_id,
                 shuffle=shuffle,
             )
-        except AttributeError:
-            _LOGGER.error(
-                "SubsonicApi.async_resolve_tracks is not implemented yet. "
-                "Please implement this method to resolve media_type+id → tracks."
-            )
-            return
         except Exception as err:
             _LOGGER.error("Error resolving tracks from Subsonic: %s", err)
             return
@@ -74,30 +64,20 @@ async def async_register_services(hass: HomeAssistant, api: SubsonicApi) -> None
             )
             return
 
-        # 3) ถ้าไม่ enqueue → clear queue ฝั่ง api (ถ้าคุณมี)
-        if not enqueue:
-            if hasattr(api, "async_clear_queue"):
-                try:
-                    await api.async_clear_queue()
-                except Exception as err:
-                    _LOGGER.debug("Error clearing Subsonic queue: %s", err)
+        # 3) queue management (optional – ตอนนี้ยังไม่มี queue entity ก็ข้ามไปก่อน)
+        # ถ้าคุณอยากใช้ queue ฝั่ง HA เอง สามารถเก็บ tracks ลง hass.data[DOMAIN]["queue"] ตรงนี้ได้
 
-        # 4) เก็บ queue ฝั่ง api (optional)
-        if hasattr(api, "async_set_current_queue"):
-            try:
-                await api.async_set_current_queue(tracks)
-            except Exception as err:
-                _LOGGER.debug("Error setting Subsonic queue: %s", err)
-
-        # 5) เอา track แรกไปเล่นบน media_player เป้าหมาย
+        # 4) เล่น track แรกบน media_player เป้าหมายทุกตัว
         first_track = tracks[0]
-
-        # สมมติ track object ของคุณมี key stream_url / mime_type
-        stream_url = getattr(first_track, "stream_url", None)
-        mime_type = getattr(first_track, "mime_type", None) or "music"
+        stream_url = first_track.get("stream_url")
+        mime_type = first_track.get("mime_type", "music")
 
         if not stream_url:
-            _LOGGER.error("First track has no stream_url, cannot play")
+            _LOGGER.error(
+                "First track has no stream_url (media_type=%s id=%s)",
+                media_type,
+                media_id,
+            )
             return
 
         for entity_id in entity_ids:
@@ -121,6 +101,6 @@ async def async_register_services(hass: HomeAssistant, api: SubsonicApi) -> None
                 blocking=False,
             )
 
-    # Register core service ถ้ายังไม่มี
+    # register service
     if not hass.services.has_service(DOMAIN, "play_media"):
         hass.services.async_register(DOMAIN, "play_media", async_handle_play_media)
