@@ -30,7 +30,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         result = await api.ping()
     except Exception as err:
         # ถ้า ping ไม่สำเร็จ ให้ raise ConfigEntryNotReady เพื่อให้ HA ลองใหม่ทีหลัง
-        raise ConfigEntryNotReady("Could not connect to Subsonic API") from err
+        raise ConfigEntryNotReady("Could not connect to Subsonic API") from e
 
     # เก็บ api ลงใน hass.data (รองรับหลาย config entry ในอนาคต)
     hass.data.setdefault(DOMAIN, {})
