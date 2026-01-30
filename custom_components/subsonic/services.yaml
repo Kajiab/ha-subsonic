@@ -1,0 +1,279 @@
+# Subsonic / Navidrome services for Home Assistant
+# Place this file as: custom_components/subsonic/services.yaml
+
+play_media:
+  name: Play media
+  description: >
+    Play Subsonic/Navidrome media (album, playlist, track, folder, artist, radio)
+    on a media_player. This is the core generic play service – other play_* services
+    are convenience wrappers around this one.
+  target:
+    entity:
+      domain: media_player
+  fields:
+    media_content_type:
+      name: Media type
+      description: >
+        Type of media to play from Subsonic/Navidrome.
+        Common values: album, playlist, track, folder, artist, radio.
+      required: true
+      example: album
+      selector:
+        select:
+          mode: dropdown
+          options:
+            - album
+            - playlist
+            - track
+            - folder
+            - artist
+            - radio
+    media_content_id:
+      name: Media ID
+      description: >
+        Subsonic/Navidrome media identifier or URI.
+        This is treated as opaque by Home Assistant and passed directly to the Subsonic API.
+      required: true
+      example: "navidrome:album:12345"
+      selector:
+        text:
+    shuffle:
+      name: Shuffle
+      description: >
+        If enabled, tracks will be shuffled before playback.
+      required: false
+      default: false
+      selector:
+        boolean:
+    enqueue:
+      name: Enqueue
+      description: >
+        If true, add media to the current queue. If false, replace the existing queue.
+      required: false
+      default: false
+      selector:
+        boolean:
+
+play_album:
+  name: Play album
+  description: >
+    Play a specific album from Subsonic/Navidrome on a media_player.
+    This is a convenience wrapper around the play_media service.
+  target:
+    entity:
+      domain: media_player
+  fields:
+    album_id:
+      name: Album ID
+      description: >
+        Subsonic/Navidrome album identifier.
+        Can be a raw Subsonic ID or an opaque ID such as "navidrome:album:12345".
+      required: true
+      example: "navidrome:album:12345"
+      selector:
+        text:
+    shuffle:
+      name: Shuffle
+      description: >
+        If enabled, tracks in the album will be shuffled before playback.
+      required: false
+      default: false
+      selector:
+        boolean:
+    enqueue:
+      name: Enqueue
+      description: >
+        If true, add the album to the current queue. If false, replace the existing queue.
+      required: false
+      default: false
+      selector:
+        boolean:
+
+play_playlist:
+  name: Play playlist
+  description: >
+    Play a playlist from Subsonic/Navidrome on a media_player.
+    This is a convenience wrapper around the play_media service.
+  target:
+    entity:
+      domain: media_player
+  fields:
+    playlist_id:
+      name: Playlist ID
+      description: >
+        Subsonic/Navidrome playlist identifier.
+        Can be a raw Subsonic ID or an opaque ID such as "navidrome:playlist:chill_001".
+      required: true
+      example: "navidrome:playlist:chill_001"
+      selector:
+        text:
+    shuffle:
+      name: Shuffle
+      description: >
+        If enabled, tracks in the playlist will be shuffled before playback.
+      required: false
+      default: false
+      selector:
+        boolean:
+    enqueue:
+      name: Enqueue
+      description: >
+        If true, add the playlist to the current queue. If false, replace the existing queue.
+      required: false
+      default: false
+      selector:
+        boolean:
+
+play_track:
+  name: Play track
+  description: >
+    Play a single track from Subsonic/Navidrome on a media_player.
+    This is a convenience wrapper around the play_media service.
+  target:
+    entity:
+      domain: media_player
+  fields:
+    track_id:
+      name: Track ID
+      description: >
+        Subsonic/Navidrome track identifier.
+      required: true
+      example: "navidrome:track:abc123"
+      selector:
+        text:
+    enqueue:
+      name: Enqueue
+      description: >
+        If true, add the track to the current queue. If false, replace the existing queue.
+      required: false
+      default: false
+      selector:
+        boolean:
+
+play_artist:
+  name: Play artist
+  description: >
+    Play all tracks (or a selection) from a specific artist from Subsonic/Navidrome.
+    Backend is responsible for ordering and selection (top tracks, all tracks, etc.).
+  target:
+    entity:
+      domain: media_player
+  fields:
+    artist_id:
+      name: Artist ID
+      description: >
+        Subsonic/Navidrome artist identifier.
+      required: true
+      example: "navidrome:artist:5678"
+      selector:
+        text:
+    shuffle:
+      name: Shuffle
+      description: >
+        If enabled, tracks for this artist will be shuffled before playback.
+      required: false
+      default: true
+      selector:
+        boolean:
+    enqueue:
+      name: Enqueue
+      description: >
+        If true, add to the current queue. If false, replace the existing queue.
+      required: false
+      default: false
+      selector:
+        boolean:
+
+play_random_album:
+  name: Play random album
+  description: >
+    Pick a random album from Subsonic/Navidrome (optionally filtered by genre/year)
+    and play it on a media_player.
+  target:
+    entity:
+      domain: media_player
+  fields:
+    genre:
+      name: Genre filter
+      description: >
+        Optional genre filter when selecting a random album.
+        Leave empty to pick from all genres.
+      required: false
+      example: "Rock"
+      selector:
+        text:
+    year_from:
+      name: Year from
+      description: >
+        Optional lower bound for album year when selecting a random album.
+      required: false
+      selector:
+        number:
+          min: 1900
+          max: 2100
+          mode: box
+    year_to:
+      name: Year to
+      description: >
+        Optional upper bound for album year when selecting a random album.
+      required: false
+      selector:
+        number:
+          min: 1900
+          max: 2100
+          mode: box
+    shuffle:
+      name: Shuffle
+      description: >
+        If enabled, tracks within the random album will be shuffled before playback.
+      required: false
+      default: true
+      selector:
+        boolean:
+    enqueue:
+      name: Enqueue
+      description: >
+        If true, add the random album to the current queue. If false, replace the queue.
+      required: false
+      default: false
+      selector:
+        boolean:
+
+# --- Library / Maintenance services ---
+
+sync_library:
+  name: Sync library
+  description: >
+    Trigger a library synchronization with the Subsonic/Navidrome server.
+    Depending on the backend implementation, this can be a full or incremental sync.
+  fields:
+    full:
+      name: Full sync
+      description: >
+        If true, perform a full rescan of the library.
+        If false, perform an incremental/fast sync where supported.
+      required: false
+      default: false
+      selector:
+        boolean:
+
+refresh_recent:
+  name: Refresh recently added
+  description: >
+    Refresh the list of recently added albums/tracks from Subsonic/Navidrome.
+    Typically updates sensor entities such as sensor.subsonic_recent_albums.
+  fields: {}
+
+refresh_playlists:
+  name: Refresh playlists
+  description: >
+    Refresh the list of playlists from Subsonic/Navidrome.
+    Typically updates internal cache and any related entities.
+  fields: {}
+
+refresh_random_cache:
+  name: Refresh random cache
+  description: >
+    Pre-populate or refresh any cached random albums/tracks used by the integration,
+    to speed up random selection operations.
+  fields: {}
