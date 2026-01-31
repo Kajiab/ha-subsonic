@@ -1,3 +1,4 @@
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.components.media_player import BrowseError, MediaClass, MediaType
 from homeassistant.components.media_source.error import Unresolvable
 from homeassistant.components.media_source.models import (
@@ -50,12 +51,28 @@ class SubsonicSource(MediaSource):
     def radio(self) -> bool:
         return self.__getOption("radio", False)
 
+
     @property
     def api(self) -> SubsonicApi:
+        """Return SubsonicApi instance for this config entry."""
         if self.__api is None:
-            self.__api = self.hass.data[DOMAIN]
+            domain_data = self.hass.data.get(DOMAIN)
+
+            if not domain_data:
+                raise HomeAssistantError(
+                    f"Subsonic API not initialized for domain '{DOMAIN}'"
+                )
+
+            api = domain_data.get(self.entry.entry_id)
+            if api is None:
+                raise HomeAssistantError(
+                    f"Subsonic API not found for entry_id={self.entry.entry_id}"
+                )
+
+            self.__api = api
 
         return self.__api
+
 
     def __getProperty(self, property, dafultValue=None):
         if (self.entry is not None
@@ -107,11 +124,14 @@ class SubsonicSource(MediaSource):
     async def async_resolve_song(self, identifier: str) -> PlayMedia:
         songId = identifier.replace("song/", "")
         song = await self.api.getSong(songId)
-        contentType = song["contentType"] if "contentType" in song else "audio/mpeg"
+        #contentType = song["contentType"] if "contentType" in song else "audio/mpeg"
 
-        streamUrl = self.api.getSongStreamUrl(songId)
+        #streamUrl = self.api.getSongStreamUrl(songId)
 
-        return PlayMedia(streamUrl, contentType)
+        #return PlayMedia(streamUrl, contentType)
+        
+        streamUrl = self.api.getSongStreamUrl(songId, audio_format="mp3", max_bitrate=192)
+        return PlayMedia(streamUrl, "audio/mpeg")
 
 
 
@@ -552,7 +572,20 @@ class SubsonicSource(MediaSource):
             children=items,
         )
 
-async def async_get_media_source(hass: HomeAssistant) -> SubsonicSource:
-    LOGGER.warning("async_get_media_source")
-    entry = hass.config_entries.async_entries(DOMAIN)[0]
+
+async def async_get_media_source(hass: HomeAssistant) -> SubsonicSource | None:
+    """Return Subsonic media source instance (if configured)."""
+    LOGGER.debug("async_get_media_source called for Subsonic")
+
+    entries = hass.config_entries.async_entries(DOMAIN)
+
+    if not entries:
+        # ยังไม่มีการตั้งค่า integration นี้เลย → ไม่ต้องสร้าง MediaSource
+        LOGGER.warning(
+            "Subsonic media source requested but no config entries found for domain '%s'",
+            DOMAIN,
+        )
+        return None
+
+    entry = entries[0]
     return SubsonicSource(hass, entry)

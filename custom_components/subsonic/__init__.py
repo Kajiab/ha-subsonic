@@ -34,9 +34,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # เก็บ api ลงใน hass.data (รองรับหลาย config entry ในอนาคต)
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN][entry.entry_id] = {
-        "api": api,
-    }
+    hass.data[DOMAIN][entry.entry_id] = api
+    
 
     # Register services (play_media, play_album, play_playlist, ...)
     await async_register_services(hass, api)

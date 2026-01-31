@@ -224,17 +224,40 @@ class SubsonicApi:
 
         return url
 
-    def getSongStreamUrl(self, id: str) -> str:
-        params = {
-            "id": id
+
+    
+    def getSongStreamUrl(
+        self,
+        id: str,
+        audio_format: str | None = "mp3",
+        max_bitrate: int | None = 192,
+    ) -> str:
+        """Return streaming URL for a song, with optional transcoding.
+
+        :param id: Subsonic/Navidrome song ID
+        :param audio_format: target format, e.g. "mp3", "aac", "opus". If None, no format param is sent.
+        :param max_bitrate: max bitrate in kbps. If None, no maxBitRate param is sent.
+        """
+        params: dict[str, str] = {
+            "id": id,
         }
 
+        # ถ้าอยากให้ Navidrome แปลงไฟล์ → ใส่ format + maxBitRate
+        if audio_format:
+            params["format"] = audio_format
+
+        if max_bitrate:
+            # Navidrome/ Subsonic รับเป็นตัวเลข (string)
+            params["maxBitRate"] = str(max_bitrate)
+
+        # ใส่พารามิเตอร์มาตรฐานอื่น ๆ (u / t / s / v / c ฯลฯ) ผ่าน helper เดิมของคุณ
         p = self.__getRequestParams(params)
 
         query = "&".join([f"{k}={v}" for k, v in p.items()])
         url = f"{self.url}/rest/stream.view?{query}"
 
         return url
+
 
 
     async def __aenter__(self) -> Self:
